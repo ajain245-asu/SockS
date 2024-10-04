@@ -4,9 +4,10 @@ using namespace std;
 
 struct Player {
     char name[256];
-    string ipv4;
+    char ipv4[16];
     int t_port;
     int p_port;
+    bool playing; // For tracker to know if this player is availible for a game
 };
 
 struct Game {
@@ -22,13 +23,6 @@ enum Game_Comms {
     START,
     QUERY_GAME,
     DEREGISTER,
-};
-
-struct comm_reg_args {
-    char player[256];
-    char ipv4[16];
-    int t_port;
-    int p_port;
 };
 
 struct comm_stg_args {
@@ -48,7 +42,7 @@ struct comm_end_args {
 struct Serv_Comms {
     Game_Comms comm;
     union {
-        struct comm_reg_args reg;
+        struct Player reg;
         struct comm_stg_args stg;
         struct comm_drg_args drg;
         struct comm_end_args end;

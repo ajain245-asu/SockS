@@ -123,10 +123,11 @@ int main( int argc, char *argv[] )
             cin >> t_port;
             cout << "Enter player's port: ";
             cin >> p_port;
-            strcpy(comm_to_send.comm_args.reg.player , player.c_str());
+            strcpy(comm_to_send.comm_args.reg.name , player.c_str());
             strcpy(comm_to_send.comm_args.reg.ipv4 , ipv4.c_str());
             comm_to_send.comm_args.reg.t_port = t_port;
             comm_to_send.comm_args.reg.p_port = p_port;
+            comm_to_send.comm_args.reg.playing = 0;
             comm_to_send.comm = REGISTER;
 
         } else if (command == 2){
