@@ -47,6 +47,103 @@ bool is_number(const string &str) {
     return !trimmed_str.empty() && std::all_of(trimmed_str.begin(), trimmed_str.end(), ::isdigit);
 }
 
+void PlayGame(int port) {
+    size_t nread;
+    int sock;                        // Socket descriptor
+    struct sockaddr_in echoServAddr; // Echo server address
+    struct sockaddr_in fromAddr;     // Source address of echo
+    unsigned short gamePort;     // Echo server port
+    unsigned int fromSize;           // In-out of address size for recvfrom()
+    char *servIP;                    // IP address of server
+    char *echoString = NULL;         // String to send to echo server
+    string input = "";         // String to send to echo server
+    size_t echoStringLen = ECHOMAX;               // Length of string to echo
+    int respStringLen;               // Length of received response
+
+    echoString = (char *) malloc( ECHOMAX );
+
+    servIP = "127.0.0.1";
+    gamePort = port;  // Second arg: Use given port
+
+    printf( "client: Arguments passed: server IP %s, port %d\n", servIP, gamePort );
+
+    // Create a datagram/UDP socket
+    if( ( sock = socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP ) ) < 0 )
+        DieWithError( "client: socket() failed" );
+
+    // Construct the server address structure
+    memset( &echoServAddr, 0, sizeof( echoServAddr ) ); // Zero out structure
+    echoServAddr.sin_family = AF_INET;                  // Use internet addr family
+    echoServAddr.sin_addr.s_addr = inet_addr( servIP ); // Set server's IP address
+    echoServAddr.sin_port = htons( gamePort );      // Set server's port
+
+	// Pass string back and forth between server ITERATIONS times
+
+	printf( "client: Echoing strings for %d iterations\n", ITERATIONS );
+
+
+
+    for( int i = 0; i < ITERATIONS; i++ )
+    {
+        cout << echoString;
+        cout << "\n--------------------------------------------------" << endl;
+        cout << "\nType 0 to exit the game or :-\n" << endl
+        << "\t 1) DRAW_FROM_STOCK" << endl
+        << "\t 2) DRAW_FROM_DISCARD" << endl
+        << "\t 3) STEAL_FROM_PLAYER" << endl
+        << "Enter your command: \n";
+        cin >> input;
+
+        int command = std::stoi(trim(input));
+        string player;
+        string ipv4;
+        int t_port;
+        int p_port;
+
+        Game_Pack comm_to_send = Game_Pack();
+
+        if (command == 0) {
+            break;
+
+        } else if (command == 1){
+            comm_to_send.comm = DRAW_FROM_STOCK;
+
+        } else if (command == 2){
+            comm_to_send.comm = DRAW_FROM_DISCARD;
+
+        } else if (command == 3){
+            comm_to_send.comm = STEAL_FROM_PLAYER;
+            cout << "debugging" << endl;
+
+
+        }
+
+        printf( "\n Sending data to the server\n" );
+        // cout << comm_to_send.comm;
+
+        // Send the string to the server
+        if( sendto( sock, &comm_to_send, sizeof(comm_to_send), 0, (struct sockaddr *) &echoServAddr, sizeof( echoServAddr ) ) != sizeof(comm_to_send) )
+       		DieWithError( "client: sendto() sent a different number of bytes than expected" );
+
+        // Receive a response
+        fromSize = sizeof( fromAddr );
+
+        if( ( respStringLen = recvfrom( sock, echoString, ECHOMAX, 0, (struct sockaddr *) &fromAddr, &fromSize ) ) > ECHOMAX )
+            DieWithError( "client: recvfrom() failed" );
+
+        echoString[ respStringLen ] = '\0';
+        char * newstrin = &echoString[respStringLen-4];
+        if (atoi(newstrin) == 8001) {
+            cout << "Game started at port 8001." << endl << endl << "Redirecting to the game ..." << endl;
+            PlayGame(8001);
+        }
+ 		
+    }
+    
+    close( sock );
+    exit( 0 );
+}
+
 int main( int argc, char *argv[] )
 {
     size_t nread;
@@ -100,6 +197,7 @@ int main( int argc, char *argv[] )
         << "\t 3) Start a Game" << endl
         << "\t 4) Query Games" << endl
         << "\t 5) De-register" << endl
+        << "\t 6) Debug start" << endl
         << "Enter your command: \n";
         cin >> input;
 
@@ -109,7 +207,7 @@ int main( int argc, char *argv[] )
         int t_port;
         int p_port;
 
-        Serv_Comms comm_to_send = Serv_Comms();
+        Serv_Pack comm_to_send = Serv_Pack();
 
         if (command == 0) {
             break;
@@ -135,6 +233,8 @@ int main( int argc, char *argv[] )
 
         } else if (command == 3){
             comm_to_send.comm = START;
+            cout << "debugging" << endl;
+
 
         } else if (command == 4){
             comm_to_send.comm = QUERY_GAME;
@@ -144,9 +244,19 @@ int main( int argc, char *argv[] )
             cin >> player;
             strcpy(comm_to_send.comm_args.drg.player , player.c_str());
             comm_to_send.comm = DEREGISTER;
+        } else if (command == 6) {
+            cout << "debugging" << endl;
+            Game_Pack comm_to_send = Game_Pack();
+            comm_to_send.comm = DRAW_FROM_DISCARD;
+            // Send the string to the server
+        if( sendto( sock, &comm_to_send, sizeof(comm_to_send), 0, (struct sockaddr *) &echoServAddr, sizeof( echoServAddr ) ) != sizeof(comm_to_send) )
+       		DieWithError( "client: sendto() sent a different number of bytes than expected" );
+        if( sendto( sock, &comm_to_send, sizeof(comm_to_send), 0, (struct sockaddr *) &echoServAddr, sizeof( echoServAddr ) ) != sizeof(comm_to_send) )
+       		DieWithError( "client: sendto() sent a different number of bytes than expected" );
+
         }
 
-        printf( "\n Sending data to the server '\n" );
+        printf( "\n Sending data to the server\n" );
         // cout << comm_to_send.comm;
 
         // Send the string to the server
@@ -160,9 +270,18 @@ int main( int argc, char *argv[] )
             DieWithError( "client: recvfrom() failed" );
 
         echoString[ respStringLen ] = '\0';
+        char * newstrin = &echoString[respStringLen-4];
+        cout << "respStringLen is: " << respStringLen << endl;
+        cout << "newstring is: " << newstrin << endl;
+        cout << "echosting is: " << echoString << endl;
+        if (atoi(newstrin) == 8001) {
+            cout << "Game started at port 8001." << endl << endl << "Redirecting to the game ..." << endl;
+            PlayGame(8001);
+        }
  		
     }
     
     close( sock );
     exit( 0 );
 }
+

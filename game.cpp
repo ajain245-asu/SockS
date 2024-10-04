@@ -16,7 +16,7 @@ struct Game {
     vector<Player> players;
 };
 
-enum Game_Comms {
+enum Tracker_Comms {
     END,
     REGISTER,
     QUERY_PLAYER,
@@ -39,8 +39,8 @@ struct comm_end_args {
     int game_id;
 };
 
-struct Serv_Comms {
-    Game_Comms comm;
+struct Serv_Pack {
+    Tracker_Comms comm;
     union {
         struct Player reg;
         struct comm_stg_args stg;
@@ -48,4 +48,14 @@ struct Serv_Comms {
         struct comm_end_args end;
     } comm_args;
     
+};
+
+enum Game_Comms {
+    DRAW_FROM_STOCK,
+    DRAW_FROM_DISCARD,
+    STEAL_FROM_PLAYER,
+};
+
+struct Game_Pack {
+    Game_Comms comm;
 };
