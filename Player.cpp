@@ -64,6 +64,7 @@ void PlayGame(int port) {
     echoString = (char *) malloc( ECHOMAX );
 
     servIP = "127.0.0.1";
+    
     gamePort = port;  // Second arg: Use given port
 
     printf( "client: Arguments passed: server IP %s, port %d\n", servIP, gamePort );

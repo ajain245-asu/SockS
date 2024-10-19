@@ -110,8 +110,8 @@ void TheGameThePlayTheEverything(int t_port) {
         }
 
         // Send received datagram back to the client
-        if( sendto( sock, echoBuffer, strlen( echoBuffer ), 0, (struct sockaddr *) &playerAddr, sizeof( playerAddr ) ) != strlen( echoBuffer ) )
-            DieWithError( "server: sendto() sent a different number of bytes than expected" );
+        // if( sendto( sock, echoBuffer, strlen( echoBuffer ), 0, (struct sockaddr *) &playerAddr, sizeof( playerAddr ) ) != strlen( echoBuffer ) )
+        //     DieWithError( "server: sendto() sent a different number of bytes than expected" );
     }
     // NOT REACHED */
 
@@ -172,6 +172,13 @@ int main( int argc, char *argv[] )
             playa = comm_to_recv.comm_args.reg;
             players.push_back(playa);
 
+            string output = "Registered player, " + string(playa.name);
+            cout << output << endl;
+
+            if( sendto( sock, output.c_str(), output.size(), 0, (struct sockaddr *) &playerAddr, sizeof( playerAddr ) ) == output.size() ) {
+                cout << "Sent data to hopefully start the game" << endl;
+            }
+
         } else if (comm_to_recv.comm == QUERY_PLAYER) {
             string output = "\n\n----------------------------------------------\n";
             for (int i = 0 ; i < players.size() ; i++) {
@@ -198,8 +205,8 @@ int main( int argc, char *argv[] )
             if( sendto( sock, output.c_str(), output.size(), 0, (struct sockaddr *) &playerAddr, sizeof( playerAddr ) ) == output.size() ) {
                 cout << "Sent data to hopefully start the game" << endl;
 
-                // launch::async(TheGameThePlayTheEverything , 8001);
-                std::async(std::launch::async, TheGameThePlayTheEverything, 8001);
+                thread game_thread(TheGameThePlayTheEverything, 8001);
+                game_thread.detach();
             }
 
         } else if (comm_to_recv.comm == QUERY_GAME) {
@@ -218,8 +225,8 @@ int main( int argc, char *argv[] )
         }
 
         // Send received datagram back to the client
-        if( sendto( sock, echoBuffer, strlen( echoBuffer ), 0, (struct sockaddr *) &playerAddr, sizeof( playerAddr ) ) != strlen( echoBuffer ) )
-            DieWithError( "server: sendto() sent a different number of bytes than expected" );
+        // if( sendto( sock, echoBuffer, strlen( echoBuffer ), 0, (struct sockaddr *) &playerAddr, sizeof( playerAddr ) ) != strlen( echoBuffer ) )
+        //     DieWithError( "server: sendto() sent a different number of bytes than expected" );
     }
     // NOT REACHED */
 }
