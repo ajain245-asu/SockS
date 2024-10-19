@@ -1,3 +1,4 @@
+//Name: Dhyey Sanghvi and Aarav Jain
 // Implements the server side of an echo client-server application program.
 // The client reads ITERATIONS strings from stdin, passes the string to the
 // this server, which simply sends the string back to the client.
@@ -7,6 +8,7 @@
 //
 // Only on general3 and general4 have the ports >= 1024 been opened for
 // application programs.
+
 #include <stdio.h>      // for printf() and fprintf()
 #include <sys/socket.h> // for socket() and bind()
 #include <arpa/inet.h>  // for sockaddr_in and inet_ntoa()
