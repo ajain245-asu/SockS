@@ -18,7 +18,8 @@
 #include <iostream>
 #include "game.cpp"
 #include <set>
-#include <future>
+#include <random>
+#include <thread>
 
 using namespace std;
 #define ECHOMAX 255     // Longest string to echo
@@ -32,7 +33,57 @@ void DieWithError( const char *errorMessage ) // External error handling functio
     exit( 1 );
 }
 
-void TheGameThePlayTheEverything(int t_port) {
+// Function to generate a deck of 52 playing cards as a vector of integers.
+vector<int> getCardDeck() {
+
+    // Init the deck
+    vector<int> deck;
+
+    // Populating the deck of cards
+    for (int i = 0 ; i < 52 ; i++) {
+        deck.push_back(i + 1);
+    }
+
+    // Shuffling once using Fisher-Yates shuffle algorithm
+    for (int i = 0; i < deck.size() - 1; i++) {
+        int j = i + rand() % (deck.size() - i);
+        swap(deck[i], deck[j]);
+    }
+    // Shuffling once again using Fisher-Yates shuffle algorithm just to be sure
+    for (int i = 0; i < deck.size() - 1; i++) {
+        int j = i + rand() % (deck.size() - i);
+        swap(deck[i], deck[j]);
+    }
+
+    //// Apparantly we could also do this
+    // Initialize random number generator
+    random_device rd;
+    mt19937 g(rd());
+
+    // Shuffle the vector
+    shuffle(deck.begin(), deck.end(), g);
+
+    // Shuffling yet again using Fisher-Yates shuffle algorithm cuz 
+    // third time's the charm plus i dont trust the shuffle func
+    for (int i = 0; i < deck.size() - 1; i++) {
+        int j = i + rand() % (deck.size() - i);
+        swap(deck[i], deck[j]);
+    }
+
+
+    return deck;
+}
+
+void TheGameThePlayTheEverything(int dealer, int t_port) {
+    printf("TheGameThePlayTheEverything:- %ld :: %ld", (long)getpid(), (long)getppid());
+
+    vector<int> deck = getCardDeck();
+    // cout << "Shuffled vector: ";
+    // for (int num : deck) {
+    //     cout << num << " ";
+    // }
+    // cout << endl;
+
 
     struct sockaddr_in trackerAddr; // Local address of server
     struct sockaddr_in playerAddr; // Client address
@@ -119,6 +170,7 @@ void TheGameThePlayTheEverything(int t_port) {
 
 int main( int argc, char *argv[] )
 {
+    printf("main:- %ld :: %ld", (long)getpid(), (long)getppid());
     int sock;                        // Socket
     struct sockaddr_in trackerAddr; // Local address of server
     struct sockaddr_in playerAddr; // Client address
@@ -154,7 +206,7 @@ int main( int argc, char *argv[] )
     for(;;) // Run forever
     {
         cliAddrLen = sizeof( playerAddr );
-        Serv_Pack comm_to_recv = Serv_Pack();
+        Serv_Pack comm_to_recv{};
 
         // Block until receive message from a client
         if( ( recvMsgSize = recvfrom( sock, &comm_to_recv, sizeof(comm_to_recv), 0, (struct sockaddr *) &playerAddr, &cliAddrLen )) < 0 )
@@ -201,13 +253,67 @@ int main( int argc, char *argv[] )
             
 
         } else if (comm_to_recv.comm == START) {
-            string output = "Starting Game at port: 8001";
-            if( sendto( sock, output.c_str(), output.size(), 0, (struct sockaddr *) &playerAddr, sizeof( playerAddr ) ) == output.size() ) {
-                cout << "Sent data to hopefully start the game" << endl;
 
-                thread game_thread(TheGameThePlayTheEverything, 8001);
-                game_thread.detach();
+            bool err = true;
+            vector<int> availibes;
+            int dealer;
+
+            for (int i = 0 ; i < players.size() ; i++) {
+                cout << "sent ppplayer name is " << comm_to_recv.comm_args.stg.player << endl;
+                cout << "player i name is : " << players[i].name << endl;
+                cout << "player i tport is : " << players[i].t_port << endl;
+                if (strcmp(comm_to_recv.comm_args.stg.player , players[i].name) == 0) {
+                    cout << "exectuted here" << endl;
+                    err = false;
+                    dealer = i;
+                }
+                if (players[i].playing == false) {
+                    availibes.push_back(i);
+                }
+                if (comm_to_recv.comm_args.stg.n > 3 || comm_to_recv.comm_args.stg.n < 1) {
+                    err = true;
+                    cout << "err in n " << endl;
+                }
             }
+
+            if (availibes.size() < comm_to_recv.comm_args.stg.n) {
+                err = true;
+                cout << "err in avaible size" << "availible size is " << availibes.size() << endl << "n is " << comm_to_recv.comm_args.stg.n << endl;
+            }
+
+            if (comm_to_recv.comm_args.stg.holes > 9 || comm_to_recv.comm_args.stg.n < 1) {
+                err = true;
+                cout << "Wrong holes" << endl;
+            }
+
+            if (err) {
+                cout << endl << "Error in starting game" << endl;
+            } else {
+
+                int newPort = games.size() + 400;
+                newPort += trackerPort;
+                string output = "SUCCESS!\nGame commencing on port:";
+                output += to_string(newPort);
+
+                cout << "output : " << output << endl << "newport : " << newPort << endl << "trackerPort : " << trackerPort << endl << "games.size: " << games.size() << endl;
+
+                for (int i = 0 ; i < availibes.size() ; i++) {
+                    if( sendto( players[availibes[i]].t_port, output.c_str(), output.size(), 0, (struct sockaddr *) &playerAddr, sizeof( playerAddr ) ) == output.size() ) {
+                        cout << "Sent data to hopefully start the game" << endl;
+
+                        struct Game game;
+                        game.port = newPort;
+                        game.players.push_back(players.back());
+                        game.dealer = dealer;
+                        players.back().p_port;
+
+                        thread game_thread(TheGameThePlayTheEverything, dealer, newPort);
+                        game_thread.detach();
+                    }
+                }
+            }
+
+
 
         } else if (comm_to_recv.comm == QUERY_GAME) {
             string output = "\n\nNo Ongoing games\n\n";

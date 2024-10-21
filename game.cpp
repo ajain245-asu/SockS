@@ -8,13 +8,14 @@ struct Player {
     char ipv4[16];
     int t_port;
     int p_port;
-    bool playing; // For tracker to know if this player is availible for a game
+    bool playing = false; // For tracker to know if this player is availible for a game
 };
 
 struct Game {
     int deck[52];
-    Player dealer;
+    int dealer;
     vector<Player> players;
+    int port;
 };
 
 enum Tracker_Comms {

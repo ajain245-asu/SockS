@@ -16,11 +16,14 @@
 #include <unistd.h>     // for close()
 #include <iostream>
 #include "game.cpp"
+#include <thread>
 
 using namespace std;
 
 #define ECHOMAX 255     // Longest string to echo
 #define ITERATIONS	5   // Number of iterations the client executes
+
+atomic<bool> keepListening(true);
 
 void DieWithError( const char *errorMessage ) // External error handling function
 {
@@ -49,6 +52,7 @@ bool is_number(const string &str) {
 }
 
 void PlayGame(int port) {
+    printf("PlayGame:- %ld :: %ld", (long)getpid(), (long)getppid());
     size_t nread;
     int sock;                        // Socket descriptor
     struct sockaddr_in echoServAddr; // Echo server address
@@ -146,8 +150,52 @@ void PlayGame(int port) {
     exit( 0 );
 }
 
+
+
+void listenForGamePort(int trackerSock) {
+    struct sockaddr_in fromAddr;
+    socklen_t fromSize = sizeof(fromAddr);
+    char echoString[ECHOMAX + 1];  // One more for null-termination
+    int respStringLen;
+
+    while (keepListening) {
+        respStringLen = recvfrom(trackerSock, echoString, ECHOMAX, 0, (struct sockaddr*)&fromAddr, &fromSize);
+
+        // Check if data was received
+        if (respStringLen > 0) {
+            echoString[respStringLen] = '\0';  // Null-terminate the string
+
+            char* gamePort = &echoString[respStringLen - 4];
+            if (strncmp(echoString, "SUCCESS", 7) == 0) {
+                cout << "Game started at port: " << gamePort << endl;
+                cout << "Redirecting to the game ..." << endl;
+
+                // Convert gamePort to int and call PlayGame
+                int port = atoi(gamePort);
+
+                // Stop listening since we received the relevant string
+                keepListening = false;
+                PlayGame(port);  // Assuming PlayGame is defined somewhere
+                break;  // Exit the listening loop
+            }
+        }
+
+        // Sleep for a short time to prevent busy-waiting (optional)
+        this_thread::sleep_for(chrono::milliseconds(100));
+    }
+
+    close(trackerSock);  // Close the socket when done listening
+}
+
+void startListening(int trackerSock) {
+    // Launch the listening thread
+    thread listener(listenForGamePort, trackerSock);
+    listener.detach();  // Detach the thread to let it run independently
+}
+
 int main( int argc, char *argv[] )
 {
+    printf("main:- %ld :: %ld", (long)getpid(), (long)getppid());
     size_t nread;
     int sock;                        // Socket descriptor
     struct sockaddr_in echoServAddr; // Echo server address
@@ -189,7 +237,7 @@ int main( int argc, char *argv[] )
 
 
 
-    for( int i = 0; i < ITERATIONS; i++ )
+    while (keepListening)
     {
         cout << echoString;
         cout << "\n--------------------------------------------------" << endl;
@@ -208,8 +256,10 @@ int main( int argc, char *argv[] )
         string ipv4;
         int t_port;
         int p_port;
+        int n_players;
+        int n_holes;
 
-        Serv_Pack comm_to_send = Serv_Pack();
+        Serv_Pack comm_to_send{};
 
         if (command == 0) {
             break;
@@ -230,12 +280,31 @@ int main( int argc, char *argv[] )
             comm_to_send.comm_args.reg.playing = 0;
             comm_to_send.comm = REGISTER;
 
+            
+
+            // Create a datagram/UDP socket
+            int trackerSock;
+            if( ( trackerSock = socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP ) ) < 0 )
+                DieWithError( "client: socket() failed" );
+
+            startListening(trackerSock);
+
+
+
         } else if (command == 2){
             comm_to_send.comm = QUERY_PLAYER;
 
         } else if (command == 3){
             comm_to_send.comm = START;
-            cout << "debugging" << endl;
+            cout << "Enter the name of the dealer: ";
+            cin >> player;
+            cout << "How many more players will you play with: ";
+            cin >> n_players;
+            cout << "Enter number of holes: ";
+            cin >> n_holes;
+            comm_to_send.comm_args.stg.holes = n_holes;
+            comm_to_send.comm_args.stg.n = n_players;
+            strcpy(comm_to_send.comm_args.stg.player , player.c_str());
 
 
         } else if (command == 4){
@@ -270,16 +339,6 @@ int main( int argc, char *argv[] )
 
         if( ( respStringLen = recvfrom( sock, echoString, ECHOMAX, 0, (struct sockaddr *) &fromAddr, &fromSize ) ) > ECHOMAX )
             DieWithError( "client: recvfrom() failed" );
-
-        echoString[ respStringLen ] = '\0';
-        char * newstrin = &echoString[respStringLen-4];
-        cout << "respStringLen is: " << respStringLen << endl;
-        cout << "newstring is: " << newstrin << endl;
-        cout << "echosting is: " << echoString << endl;
-        if (atoi(newstrin) == 8001) {
-            cout << "Game started at port 8001." << endl << endl << "Redirecting to the game ..." << endl;
-            PlayGame(8001);
-        }
  		
     }
     
